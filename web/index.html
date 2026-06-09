@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Geri Dönüşüm Asistanı</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
+</head>
+<body>
+    <div class="container">
+        <h1>Geri Dönüşüm Asistanı</h1>
+        <p>Geri dönüştürmek istediğiniz atığın fotoğrafını yükleyin, sizin için hangi kutuya atmanız gerektiğini söyleyelim.</p>
+
+        <div class="main-content">
+            <div class="upload-section">
+                <h2>Resim Yükle</h2>
+                <form id="upload-form" action="/analyze" method="post" enctype="multipart/form-data">
+                    <input type="file" id="file-upload" name="file" accept="image/*">
+                    <label for="file-upload" class="custom-file-upload">Resim Seç</label>
+                    
+                    <div class="uploaded-image-display">
+                        <p id="prediction-text-on-upload" class="prediction-text" style="display: none;"></p>
+                        <img id="image-preview" src="#" alt="Yüklenen Görsel Önizlemesi" style="display: none;">
+                    </div>
+                    
+                    <input type="submit" value="Analiz Et">
+                </form>
+            </div>
+
+            <div class="result-section">
+                <h2>Analiz Sonucu</h2>
+                <div id="initial-message" class="initial-message">
+                    <p>Lütfen bir resim yükleyerek analizi başlatın.</p>
+                </div>
+                <div id="error-message" class="error-message" style="display: none;">
+                    <img src="{{ error_icon_path }}" alt="Hata" class="error-image">
+                    <p>Bir hata oluştu veya resim bulunamadı. Lütfen geçerli bir resim dosyası yüklediğinizden emin olun.</p>
+                </div>
+                
+                <div id="analysis-result-content" class="analysis-result-content" style="display: none;">
+                    <div class="image-container">
+                        <img id="all-bins-image" src="{{ placeholder_bins_path }}" alt="Geri Dönüşüm Kutuları" class="all-bins-image">
+                    </div>
+                    <p id="feedback-text-result" class="feedback-text"></p>
+                </div>
+            </div>
+        </div>
+
+        <p class="footer-text">© 2024 Geri Dönüşüm Asistanı. Tüm Hakları Saklıdır.</p>
+    </div>
+
+    <script>
+        document.getElementById('file-upload').addEventListener('change', function(event) {
+            const preview = document.getElementById('image-preview');
+            const file = event.target.files[0];
+            const reader = new FileReader();
+
+            if (file) {
+                reader.onload = function(e) {
+                    preview.src = e.target.result;
+                    preview.style.display = 'block';
+                    document.getElementById('prediction-text-on-upload').style.display = 'none'; 
+                }
+                reader.readAsDataURL(file);
+            } else {
+                preview.src = '#';
+                preview.style.display = 'none';
+            }
+            document.getElementById('error-message').style.display = 'none';
+            document.getElementById('analysis-result-content').style.display = 'none';
+            document.getElementById('initial-message').style.display = 'block';
+        });
+
+        document.getElementById('upload-form').addEventListener('submit', async function(event) {
+            event.preventDefault(); 
+
+            const formData = new FormData(this);
+            const initialMessage = document.getElementById('initial-message');
+            const errorMessage = document.getElementById('error-message');
+            const analysisResultContent = document.getElementById('analysis-result-content');
+            
+            const predictionTextOnUpload = document.getElementById('prediction-text-on-upload');
+            const imagePreview = document.getElementById('image-preview');
+            const allBinsImage = document.getElementById('all-bins-image');
+            const feedbackTextResult = document.getElementById('feedback-text-result');
+
+            initialMessage.style.display = 'none';
+            errorMessage.style.display = 'none';
+            analysisResultContent.style.display = 'none';
+            feedbackTextResult.textContent = ''; 
+
+            const fileInput = document.getElementById('file-upload');
+            if (!fileInput.files || fileInput.files.length === 0) {
+                errorMessage.style.display = 'flex';
+                errorMessage.querySelector('p').textContent = 'Lütfen analiz etmek için bir resim seçin.';
+                predictionTextOnUpload.style.display = 'none';
+                imagePreview.style.display = 'none';
+                allBinsImage.src = "{{ placeholder_bins_path }}"; 
+                allBinsImage.style.display = 'block';
+                return; 
+            }
+
+            predictionTextOnUpload.textContent = 'Analiz Ediliyor...';
+            predictionTextOnUpload.style.display = 'block';
+            imagePreview.src = "{{ loading_spinner_path }}"; 
+            imagePreview.style.display = 'block';
+
+            try {
+                const response = await fetch('/analyze', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({ message: 'Sunucu hatası veya geçersiz yanıt formatı.' }));
+                    throw new Error(`HTTP error! Status: ${response.status}, Message: ${errorData.message || response.statusText}`);
+                }
+
+                const data = await response.json();
+                console.log('Server response:', data); 
+                const selectedFile = fileInput.files[0];
+                if (selectedFile) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        imagePreview.src = e.target.result; 
+                        imagePreview.style.display = 'block';
+                    }
+                    reader.readAsDataURL(selectedFile);
+                } else {
+                    imagePreview.style.display = 'none'; 
+                }
+
+                if (data.prediction && data.feedback && data.image_path) {
+                    predictionTextOnUpload.textContent = data.prediction;
+                    predictionTextOnUpload.style.display = 'block';
+
+                    allBinsImage.src = data.image_path; 
+                    allBinsImage.style.display = 'block';
+                    feedbackTextResult.textContent = data.feedback;
+                    feedbackTextResult.style.display = 'block';
+
+                    analysisResultContent.style.display = 'flex'; 
+                    
+                } else {
+                    errorMessage.style.display = 'flex';
+                    errorMessage.querySelector('p').textContent = 'Analiz sonucu eksik veya beklenmedik bir hata oluştu.';
+                }
+            } catch (error) {
+                console.error('Analiz hatası:', error);
+                errorMessage.style.display = 'flex';
+                errorMessage.querySelector('p').textContent = `Bir hata oluştu: ${error.message}. Lütfen geçerli bir resim dosyası yüklediğinizden emin olun veya geliştirici konsolunu kontrol edin.`;
+                predictionTextOnUpload.style.display = 'none'; 
+                imagePreview.src = "{{ error_icon_path }}";
+                imagePreview.style.display = 'block';
+                allBinsImage.src = "{{ placeholder_bins_path }}"; 
+                allBinsImage.style.display = 'block';
+
+            }
+        });
+    </script>
+</body>
+</html>
