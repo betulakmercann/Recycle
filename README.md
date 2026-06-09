@@ -1,4 +1,4 @@
-GERİ DÖNÜŞÜM ASİSTANI
+GERİ DÖNÜŞÜM ASİSTANI (2025)
 
 **Proje Hakkında**
 Geri Dönüşüm Asistanı, yapay zeka destekli, kullanıcıların atık fotoğraflarını yükleyerek hangi geri dönüşüm kategorisine ait olduğunu belirlemelerine yardımcı olan bir web uygulamasıdır. Temel amacı, geri dönüşüm bilincini artırmak, atık ayrıştırma sürecini kolaylaştırmak ve çevresel sürdürülebilirliğe katkıda bulunmaktır.
